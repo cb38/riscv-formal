@@ -1,0 +1,10 @@
+cover/
+complete/
+imemcheck/
+dmemcheck/
+/checks/
+/MR1.v
+/disasm.s
+/disasm.o
+*.gtkw
+*.pyc
