@@ -24,10 +24,15 @@ module testbench (
 
     (* keep *) wire                         data_req_valid;
     (* keep *) `rvformal_rand_reg           data_req_ready;
+<<<<<<< HEAD
     (* keep *) wire                         data_req_wren;
 	(* keep *) wire                         data_req_rden;
 	(* keep *) wire [31:0]                  data_req_wraddr;
     (* keep *) wire [31:0]                  data_req_rdaddr;
+=======
+    (* keep *) wire                         data_req_wr;
+    (* keep *) wire [31:0]                  data_req_addr;
+>>>>>>> e9ce0c1 (add MR1 and RV cores)
     (* keep *) wire [1:0]                   data_req_size;
     (* keep *) wire [31:0]                  data_req_data;
 
@@ -75,6 +80,7 @@ module testbench (
 		.clk      (clk    ),
 		.reset    (reset   ),
 
+<<<<<<< HEAD
 		.instr_req_valid    (instr_req_valid   ),
 		.instr_req_ready    (instr_req_ready   ),
 		.instr_req_addr     (instr_req_addr    ),
@@ -94,6 +100,9 @@ module testbench (
 
 		.data_rsp_valid     (data_rsp_valid   ),
 		.data_rsp_data      (data_rsp_data    ),
+=======
+      
+>>>>>>> e9ce0c1 (add MR1 and RV cores)
 
 		`RVFI_CONN
 	);

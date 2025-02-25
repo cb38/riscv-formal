@@ -34,6 +34,11 @@ with open("disasm.s", "w") as f:
         else:
             print(".word 0x%08x # %d" % (tv_insn, tv_order), file=f)
 
+<<<<<<< HEAD
 system("riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -c disasm.s --verbose")
 system("riscv64-unknown-elf-objdump -D -M numeric,no-aliases disasm.o")
+=======
+system("riscv64-unknown-elf-gcc -c disasm.s")
+system("riscv64-unknown-elf-objdump -d -M numeric,no-aliases disasm.o")
+>>>>>>> e9ce0c1 (add MR1 and RV cores)
 

@@ -141,7 +141,11 @@ module rvfi_wrapper (
 			data_rsp_pending_valid <= 0;
 			data_rsp_pending_cycles <= 0;
 		end
+<<<<<<< HEAD
 		if(data_req_valid && data_req_ready && data_req_rden) begin
+=======
+		if(data_req_valid && data_req_ready && !data_req_wr) begin
+>>>>>>> e9ce0c1 (add MR1 and RV cores)
 			data_rsp_pending_valid <= 1;
 		end
 		restrict(~rvfi_trap && data_req_pending_cycles < 4 && data_rsp_pending_cycles < 4 && instr_req_pending_cycles < 4 && instr_rsp_pending_cycles < 4);

@@ -6,5 +6,9 @@ dmemcheck/
 /MR1.v
 /disasm.s
 /disasm.o
+<<<<<<< HEAD
 *.gtkw
 *.pyc
+=======
+*.gtkw
+>>>>>>> e9ce0c1 (add MR1 and RV cores)
