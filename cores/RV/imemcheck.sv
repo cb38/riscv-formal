@@ -24,8 +24,10 @@ module testbench (
 
     (* keep *) wire                         data_req_valid;
     (* keep *) `rvformal_rand_reg           data_req_ready;
-    (* keep *) wire                         data_req_wr;
-    (* keep *) wire [31:0]                  data_req_addr;
+    (* keep *) wire                         data_req_wren;
+	(* keep *) wire                         data_req_rden;
+	(* keep *) wire [31:0]                  data_req_wraddr;
+    (* keep *) wire [31:0]                  data_req_rdaddr;
     (* keep *) wire [1:0]                   data_req_size;
     (* keep *) wire [31:0]                  data_req_data;
 
@@ -73,7 +75,25 @@ module testbench (
 		.clk      (clk    ),
 		.reset    (reset   ),
 
-      
+		.instr_req_valid    (instr_req_valid   ),
+		.instr_req_ready    (instr_req_ready   ),
+		.instr_req_addr     (instr_req_addr    ),
+
+		.instr_rsp_valid    (instr_rsp_valid   ),
+		.instr_rsp_data     (instr_rsp_data    ),
+
+		.data_req_valid     (data_req_valid   ),
+		.data_req_ready     (data_req_ready   ),
+		.data_req_wren        (data_req_wren      ),
+		.data_req_rden        (data_req_rden      ),
+		
+		.data_req_rdaddr      (data_req_rdaddr    ),
+		.data_req_wraddr      (data_req_wraddr    ),
+		.data_req_size      (data_req_size    ),
+		.data_req_data      (data_req_data    ),
+
+		.data_rsp_valid     (data_rsp_valid   ),
+		.data_rsp_data      (data_rsp_data    ),
 
 		`RVFI_CONN
 	);

@@ -25,8 +25,10 @@ module testbench (
 
     (* keep *) wire                         data_req_valid;
     (* keep *) `rvformal_rand_reg           data_req_ready;
-    (* keep *) wire                         data_req_wr;
-    (* keep *) wire [31:0]                  data_req_addr;
+	(* keep *) wire                         data_req_wren;
+	(* keep *) wire                         data_req_rden;
+	(* keep *) wire [31:0]                  data_req_wraddr;
+	(* keep *) wire [31:0]                  data_req_rdaddr;
     (* keep *) wire [1:0]                   data_req_size;
     (* keep *) wire [31:0]                  data_req_data;
 
@@ -49,7 +51,7 @@ module testbench (
 	(* keep *) reg dmem_last_valid;
 	(* keep *) wire [3:0] data_req_mask;
 
-	assign data_req_mask = ((1 << (1 << data_req_size))-1) << data_req_addr[1:0];
+	assign data_req_mask = ((1 << (1 << data_req_size))-1) << data_req_wraddr[1:0];
 
 	always @(posedge clk) begin
 		if (reset) begin
@@ -62,15 +64,19 @@ module testbench (
 				dmem_last_valid <= 0;
 			end
 			if(data_req_valid && data_req_ready) begin
-				if((data_req_addr >> 2) == (dmem_addr >> 2)) begin
-					if(!data_req_wr) begin
+				if((data_req_rdaddr >> 2) == (dmem_addr >> 2)) begin
+					if(data_req_rden) begin
 						dmem_last_valid <= 1;
-					end else begin
-						if (data_req_mask[0]) dmem_data[ 7: 0] <= data_req_data[ 7: 0];
-						if (data_req_mask[1]) dmem_data[15: 8] <= data_req_data[15: 8];
-						if (data_req_mask[2]) dmem_data[23:16] <= data_req_data[23:16];
-						if (data_req_mask[3]) dmem_data[31:24] <= data_req_data[31:24];
-					end
+					end 
+				end
+				if ((data_req_wraddr >> 2) == (dmem_addr >> 2))  begin
+					if (data_req_wren) begin
+							if (data_req_mask[0]) dmem_data[ 7: 0] <= data_req_data[ 7: 0];
+							if (data_req_mask[1]) dmem_data[15: 8] <= data_req_data[15: 8];
+							if (data_req_mask[2]) dmem_data[23:16] <= data_req_data[23:16];
+							if (data_req_mask[3]) dmem_data[31:24] <= data_req_data[31:24];
+						end
+
 				end
 			end
 			
@@ -81,7 +87,25 @@ module testbench (
 	RV uut (
 		.clk      (clk    ),
 		.reset    (reset   ),
+		.instr_req_valid    (instr_req_valid   ),
+		.instr_req_ready    (instr_req_ready   ),
+		.instr_req_addr     (instr_req_addr    ),
 
+		.instr_rsp_valid    (instr_rsp_valid   ),
+		.instr_rsp_data     (instr_rsp_data    ),
+
+		.data_req_valid     (data_req_valid   ),
+		.data_req_ready     (data_req_ready   ),
+		.data_req_wren        (data_req_wren      ),
+		.data_req_rden        (data_req_rden      ),
+		
+		.data_req_rdaddr      (data_req_rdaddr    ),
+		.data_req_wraddr      (data_req_wraddr    ),
+		.data_req_size      (data_req_size    ),
+		.data_req_data      (data_req_data    ),
+
+		.data_rsp_valid     (data_rsp_valid   ),
+		.data_rsp_data      (data_rsp_data    ),
        
 		`RVFI_CONN
 	);

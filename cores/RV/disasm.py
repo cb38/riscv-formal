@@ -11,11 +11,11 @@ rvfi_insn = None
 for netinfo in parse_vcd(argv[1]).values():
     for net in netinfo['nets']:
         # print(net["hier"], net["name"])
-        if net["hier"] == "testbench" and net["name"] == "rvfi_valid":
+        if (net["hier"] == "testbench" or net["hier"] == "rvfi_testbench") and net["name"] == "rvfi_valid":
             rvfi_valid = netinfo['tv']
-        if net["hier"] == "testbench" and net["name"] == "rvfi_order":
+        if (net["hier"] == "testbench" or net["hier"] == "rvfi_testbench") and net["name"] == "rvfi_order":
             rvfi_order = netinfo['tv']
-        if net["hier"] == "testbench" and net["name"] == "rvfi_insn":
+        if (net["hier"] == "testbench" or net["hier"] == "rvfi_testbench") and net["name"] == "rvfi_insn":
             rvfi_insn = netinfo['tv']
 
 assert len(rvfi_valid) == len(rvfi_order)
@@ -34,6 +34,6 @@ with open("disasm.s", "w") as f:
         else:
             print(".word 0x%08x # %d" % (tv_insn, tv_order), file=f)
 
-system("riscv64-unknown-elf-gcc -c disasm.s")
-system("riscv64-unknown-elf-objdump -d -M numeric,no-aliases disasm.o")
+system("riscv64-unknown-elf-gcc -march=rv32i -mabi=ilp32 -c disasm.s --verbose")
+system("riscv64-unknown-elf-objdump -D -M numeric,no-aliases disasm.o")
 

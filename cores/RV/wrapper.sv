@@ -12,25 +12,59 @@ module rvfi_wrapper (
     (* keep *) `rvformal_rand_reg [31:0]  instr_rsp_data;
 
     (* keep *) wire data_req_valid;
-    (* keep *) `rvformal_rand_reg data_req_ready;
-    (* keep *) wire data_req_wr;
-    (* keep *) wire [31:0] data_req_addr;
+    (* keep *) wire data_req_ready;
+    (* keep *) wire data_req_wren;
+    (* keep *) wire data_req_rden;
+    (* keep *) wire [31:0] data_req_wraddr;
+	(* keep *) wire [31:0] data_req_rdaddr;
     (* keep *) wire [1:0] data_req_size;
     (* keep *) wire [31:0] data_req_data;
 
-    (* keep *) `rvformal_rand_reg data_rsp_valid;
+    (* keep *) wire data_rsp_valid;
     (* keep *) `rvformal_rand_reg [31:0]  data_rsp_data;
 
 
 	RV uut (
 		.clk      (clock    ),
 		.reset    (reset   ),
+		.instr_req_valid    (instr_req_valid   ),
+		.instr_req_ready    (instr_req_ready   ),
+		.instr_req_addr     (instr_req_addr    ),
 
+		.instr_rsp_valid    (instr_rsp_valid   ),
+		.instr_rsp_data     (instr_rsp_data    ),
+
+		.data_req_valid     (data_req_valid   ),
+		.data_req_ready     (data_req_ready   ),
+		.data_req_wren        (data_req_wren      ),
+		.data_req_rden        (data_req_rden      ),
+		
+		.data_req_rdaddr      (data_req_rdaddr    ),
+		.data_req_wraddr      (data_req_wraddr    ),
+		.data_req_size      (data_req_size    ),
+		.data_req_data      (data_req_data    ),
+
+		.data_rsp_valid     (data_rsp_valid   ),
+		.data_rsp_data      (data_rsp_data    ),
         
 
 		`RVFI_CONN
 	);
 
+	// always @(posedge clock) begin
+    //     if (reset) begin
+    //         instr_rsp_valid <= 0;
+	// 		data_rsp_valid <= 0;
+    //     end
+    //     else begin
+    //         instr_rsp_valid <= instr_req_valid ;
+	// 		data_rsp_valid <= data_req_valid && data_req_rden;
+    //     end
+    // end
+	// assign data_req_ready = 1;
+	// assign instr_req_ready = 1;
+
+	
     integer instr_in_flight = 0;
     always @(posedge clock) begin
         if (reset) begin
@@ -41,22 +75,32 @@ module rvfi_wrapper (
         end
     end
 
-    rand reg instr_req_ready_rand;
+	rand reg instr_req_ready_rand;
     assign instr_req_ready = instr_req_ready_rand && instr_req_valid;
 
     rand reg instr_rsp_valid_rand;
     assign instr_rsp_valid = instr_rsp_valid_rand && instr_in_flight > 0;
 
-    integer data_in_flight = 0;
+
+	integer data_in_flight = 0;
     always @(posedge clock) begin
         if (reset) begin
             data_in_flight <= 0;
         end
         else begin
-            data_in_flight <= data_in_flight + (!data_req_wr ? (instr_req_valid && data_req_ready) - data_rsp_valid : 0);
+            data_in_flight <= data_in_flight + (data_req_rden && (data_req_valid && data_req_ready))  - data_rsp_valid ;
         end
     end
 
+    
+
+	rand reg data_req_ready_rand;
+    assign data_req_ready = data_req_ready_rand && data_req_valid && data_in_flight == 1;
+
+	rand reg data_rsp_valid_rand;
+    assign data_rsp_valid = data_rsp_valid_rand && data_in_flight > 0;
+   
+ 
 `ifdef RV_FAIRNESS
 	(* keep *) reg [2:0] instr_req_pending_cycles = 0;
 	(* keep *) reg [2:0] instr_rsp_pending_cycles = 0;
@@ -97,7 +141,7 @@ module rvfi_wrapper (
 			data_rsp_pending_valid <= 0;
 			data_rsp_pending_cycles <= 0;
 		end
-		if(data_req_valid && data_req_ready && !data_req_wr) begin
+		if(data_req_valid && data_req_ready && data_req_rden) begin
 			data_rsp_pending_valid <= 1;
 		end
 		restrict(~rvfi_trap && data_req_pending_cycles < 4 && data_rsp_pending_cycles < 4 && instr_req_pending_cycles < 4 && instr_rsp_pending_cycles < 4);
