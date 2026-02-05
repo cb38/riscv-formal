@@ -1,156 +1,217 @@
+
 module rvfi_wrapper (
 	input         clock,
 	input         reset,
 	`RVFI_OUTPUTS
+	`RVFI_BUS_OUTPUTS
 );
+	(* keep *) `rvformal_rand_reg random_stall;
+	(* keep *) `rvformal_rand_reg  irq;
+
+
+	wire 		imem_req_valid;
+
+	
+
+	wire 		dmem_req_r_valid;
+	wire 		dmem_req_w_valid;
+
+
+
+	localparam AXI_DATA_WIDTH = 32;
+	localparam AXI_ADDRESS_WIDTH = 32;
+
+	localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
+
+	// Instruction AXI read channel (AXI4-lite style)
+	wire                       instr_axi_ar_valid;
+	logic                      instr_axi_ar_ready;
+	wire [31:0]                instr_axi_ar_payload_addr;
+	wire [2:0]                 instr_axi_ar_payload_prot;
+	logic                      instr_axi_r_valid;
+	wire                       instr_axi_r_ready;
+	logic [31:0]               instr_axi_r_payload_data;
+	logic [1:0]                instr_axi_r_payload_resp;
+
+
+
+	// Data AXI read/write channels (AXI4-lite style)
+	wire                       data_axi_aw_valid;
+	logic                      data_axi_aw_ready;
+	wire [31:0]                data_axi_aw_payload_addr;
+	wire [2:0]                 data_axi_aw_payload_prot;
+	wire                       data_axi_w_valid;
+	logic                      data_axi_w_ready;
+	wire [31:0]                data_axi_w_payload_data;
+	wire [3:0]                 data_axi_w_payload_strb;
+	logic                      data_axi_b_valid;
+	wire                       data_axi_b_ready;
+	logic [1:0]                data_axi_b_payload_resp;
+	wire                       data_axi_ar_valid;
+	logic                      data_axi_ar_ready;
+	wire [31:0]                data_axi_ar_payload_addr;
+	wire [2:0]                 data_axi_ar_payload_prot;
+	logic                      data_axi_r_valid;
+	wire                       data_axi_r_ready;
+	logic [31:0]               data_axi_r_payload_data;
+	logic [1:0]                data_axi_r_payload_resp;
+
+
 	(* keep *) wire trap;
-
-    (* keep *) wire instr_req_valid;
-    (* keep *) wire instr_req_ready;
-    (* keep *) wire [31:0] instr_req_addr;
-    (* keep *) wire instr_rsp_valid;
-    (* keep *) `rvformal_rand_reg [31:0]  instr_rsp_data;
-
-    (* keep *) wire data_req_valid;
-    (* keep *) wire data_req_ready;
-    (* keep *) wire data_req_wren;
-    (* keep *) wire data_req_rden;
-    (* keep *) wire [31:0] data_req_wraddr;
-	(* keep *) wire [31:0] data_req_rdaddr;
-    (* keep *) wire [1:0] data_req_size;
-    (* keep *) wire [31:0] data_req_data;
-
-    (* keep *) wire data_rsp_valid;
-    (* keep *) `rvformal_rand_reg [31:0]  data_rsp_data;
-
 
 	RV uut (
 		.clk      (clock    ),
-		.reset    (reset   ),
-		.instr_req_valid    (instr_req_valid   ),
-		.instr_req_ready    (instr_req_ready   ),
-		.instr_req_addr     (instr_req_addr    ),
+		.reset      (reset    ),
 
-		.instr_rsp_valid    (instr_rsp_valid   ),
-		.instr_rsp_data     (instr_rsp_data    ),
+		.instr_axi_ar_valid        (instr_axi_ar_valid),
+		.instr_axi_ar_ready        (instr_axi_ar_ready),
+		.instr_axi_ar_payload_addr (instr_axi_ar_payload_addr),
+		.instr_axi_ar_payload_prot (instr_axi_ar_payload_prot),
+		.instr_axi_r_valid         (instr_axi_r_valid),
+		.instr_axi_r_ready         (instr_axi_r_ready),
+		.instr_axi_r_payload_data  (instr_axi_r_payload_data),
+		.instr_axi_r_payload_resp  (instr_axi_r_payload_resp),
 
-		.data_req_valid     (data_req_valid   ),
-		.data_req_ready     (data_req_ready   ),
-		.data_req_wren        (data_req_wren      ),
-		.data_req_rden        (data_req_rden      ),
-		
-		.data_req_rdaddr      (data_req_rdaddr    ),
-		.data_req_wraddr      (data_req_wraddr    ),
-		.data_req_size      (data_req_size    ),
-		.data_req_data      (data_req_data    ),
+		.data_axi_aw_valid         (data_axi_aw_valid),
+		.data_axi_aw_ready         (data_axi_aw_ready),
+		.data_axi_aw_payload_addr  (data_axi_aw_payload_addr),
+		.data_axi_aw_payload_prot  (data_axi_aw_payload_prot),
+		.data_axi_w_valid          (data_axi_w_valid),
+		.data_axi_w_ready          (data_axi_w_ready),
+		.data_axi_w_payload_data   (data_axi_w_payload_data),
+		.data_axi_w_payload_strb   (data_axi_w_payload_strb),
+		.data_axi_b_valid          (data_axi_b_valid),
+		.data_axi_b_ready          (data_axi_b_ready),
+		.data_axi_b_payload_resp   (data_axi_b_payload_resp),
+		.data_axi_ar_valid         (data_axi_ar_valid),
+		.data_axi_ar_ready         (data_axi_ar_ready),
+		.data_axi_ar_payload_addr  (data_axi_ar_payload_addr),
+		.data_axi_ar_payload_prot  (data_axi_ar_payload_prot),
+		.data_axi_r_valid          (data_axi_r_valid),
+		.data_axi_r_ready          (data_axi_r_ready),
+		.data_axi_r_payload_data   (data_axi_r_payload_data),
+		.data_axi_r_payload_resp   (data_axi_r_payload_resp),
 
-		.data_rsp_valid     (data_rsp_valid   ),
-		.data_rsp_data      (data_rsp_data    ),
-        
+		.irq (irq),
 
-		`RVFI_CONN
+		`RVFI_CONN32
 	);
 
-	// always @(posedge clock) begin
-    //     if (reset) begin
-    //         instr_rsp_valid <= 0;
-	// 		data_rsp_valid <= 0;
-    //     end
-    //     else begin
-    //         instr_rsp_valid <= instr_req_valid ;
-	// 		data_rsp_valid <= data_req_valid && data_req_rden;
-    //     end
-    // end
-	// assign data_req_ready = 1;
-	// assign instr_req_ready = 1;
+`ifndef RISCV_FORMAL_MEM_FAULT
+	always @* assume(!instr_axi_r_payload_resp[1]);
+	always @* assume(!data_axi_r_payload_resp[1]);
+	always @* assume(!data_axi_b_payload_resp[1]);
+`endif
 
-	
-    integer instr_in_flight = 0;
-    always @(posedge clock) begin
-        if (reset) begin
-            instr_in_flight <= 0;
-        end
-        else begin
-            instr_in_flight <= instr_in_flight + (instr_req_valid && instr_req_ready) - instr_rsp_valid;
-        end
-    end
+`ifdef RISCV_FORMAL_BUS
 
-	rand reg instr_req_ready_rand;
-    assign instr_req_ready = instr_req_ready_rand && instr_req_valid;
+`define RISCV_FORMAL_CHANNEL_SIGNAL(channels, width, name) \
+	(* keep *) reg [(width) - 1:0] imem_``name; assign rvfi_``name[0 * (width) +: (width)] = imem_``name;
+`RVFI_BUS_SIGNALS
+`undef RISCV_FORMAL_CHANNEL_SIGNAL
 
-    rand reg instr_rsp_valid_rand;
-    assign instr_rsp_valid = instr_rsp_valid_rand && instr_in_flight > 0;
+`define RISCV_FORMAL_CHANNEL_SIGNAL(channels, width, name) \
+	(* keep *) reg [(width) - 1:0] dmem_r_``name; assign rvfi_``name[1 * (width) +: (width)] = dmem_r_``name;
+`RVFI_BUS_SIGNALS
+`undef RISCV_FORMAL_CHANNEL_SIGNAL
 
+`define RISCV_FORMAL_CHANNEL_SIGNAL(channels, width, name) \
+	(* keep *) reg [(width) - 1:0] dmem_w_``name; assign rvfi_``name[2 * (width) +: (width)] = dmem_w_``name;
+`RVFI_BUS_SIGNALS
+`undef RISCV_FORMAL_CHANNEL_SIGNAL
+   // Instruction memory read channel
+	(* keep *) `rvformal_rand_reg [`RISCV_FORMAL_BUSLEN-1:0] next_instr_axi_r_payload_data;
+	(* keep *) `rvformal_rand_reg next_instr_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg next_instr_axi_r_valid;
+  
 
-	integer data_in_flight = 0;
-    always @(posedge clock) begin
-        if (reset) begin
-            data_in_flight <= 0;
-        end
-        else begin
-            data_in_flight <= data_in_flight + (data_req_rden && (data_req_valid && data_req_ready))  - data_rsp_valid ;
-        end
-    end
-
-    
-
-	rand reg data_req_ready_rand;
-    assign data_req_ready = data_req_ready_rand && data_req_valid && data_in_flight == 1;
-
-	rand reg data_rsp_valid_rand;
-    assign data_rsp_valid = data_rsp_valid_rand && data_in_flight > 0;
-   
- 
-`ifdef RV_FAIRNESS
-	(* keep *) reg [2:0] instr_req_pending_cycles = 0;
-	(* keep *) reg [2:0] instr_rsp_pending_cycles = 0;
-	(* keep *) reg       instr_rsp_pending_valid = 0;
-
-	(* keep *) reg [2:0] data_req_pending_cycles = 0;
-	(* keep *) reg [2:0] data_rsp_pending_cycles = 0;
-	(* keep *) reg       data_rsp_pending_valid = 0;
+	logic imem_req_valid_q;
 
 	always @(posedge clock) begin
-		if(instr_req_valid && !instr_req_ready) begin
-			instr_req_pending_cycles <= instr_req_pending_cycles + 1;
-		end else begin
-			instr_req_pending_cycles <= 0;
-		end
+		instr_axi_ar_ready <= next_instr_axi_ar_ready;
+		instr_axi_r_payload_data <= next_instr_axi_r_payload_data;
+		instr_axi_r_valid <= next_instr_axi_r_valid && instr_axi_ar_valid && !imem_req_valid_q;
+		imem_req_valid_q <= instr_axi_ar_valid && !reset;
+	end
 
-		if(instr_rsp_pending_valid <= 1) begin
-			instr_rsp_pending_cycles <= instr_rsp_pending_cycles + 1;
-		end
-		if(instr_rsp_valid) begin
-			instr_rsp_pending_valid <= 0;
-			instr_rsp_pending_cycles <= 0;
-		end
-		if(instr_req_valid && instr_req_ready) begin
-			instr_rsp_pending_valid <= 1;
-		end
+	always @* begin
+		imem_bus_addr  = instr_axi_ar_payload_addr;
+		imem_bus_insn  = 1;
+		imem_bus_data  = 0;
+		imem_bus_rmask = {`RISCV_FORMAL_BUSLEN / 8{1'b1}};
+		imem_bus_wmask = {`RISCV_FORMAL_BUSLEN / 8{1'b0}};
+		imem_bus_rdata = next_instr_axi_r_payload_data;
+		imem_bus_wdata = 0;
+		imem_bus_fault = 0;
+		imem_bus_valid = next_instr_axi_r_valid && instr_axi_ar_valid && !imem_req_valid_q;
 
-		if(data_req_valid && !data_req_ready) begin
-			data_req_pending_cycles <= data_req_pending_cycles + 1;
-		end else begin
-			data_req_pending_cycles <= 0;
-		end
+		instr_axi_r_payload_resp = 2'b00;
+	end
 
-		if(data_rsp_pending_valid <= 1) begin
-			data_rsp_pending_cycles <= data_rsp_pending_cycles + 1;
-		end
-		if(data_rsp_valid) begin
-			data_rsp_pending_valid <= 0;
-			data_rsp_pending_cycles <= 0;
-		end
-<<<<<<< HEAD
-		if(data_req_valid && data_req_ready && data_req_rden) begin
-=======
-		if(data_req_valid && data_req_ready && !data_req_wr) begin
->>>>>>> e9ce0c1 (add MR1 and RV cores)
-			data_rsp_pending_valid <= 1;
-		end
-		restrict(~rvfi_trap && data_req_pending_cycles < 4 && data_rsp_pending_cycles < 4 && instr_req_pending_cycles < 4 && instr_rsp_pending_cycles < 4);
+
+   // Data memory read channel
+	(* keep *) `rvformal_rand_reg [`RISCV_FORMAL_BUSLEN-1:0] next_data_axi_r_payload_data;
+	//(* keep *) `rvformal_rand_reg data_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg next_data_axi_r_valid;
+
+
+
+	logic dmem_req_r_valid_q;
+
+	always @(posedge clock) begin
+		data_axi_ar_ready <= 1;
+		data_axi_r_payload_data <= next_data_axi_r_payload_data;
+		data_axi_r_valid <= next_data_axi_r_valid && data_axi_ar_valid && !dmem_req_r_valid_q ;
+		dmem_req_r_valid_q <= data_axi_ar_valid && !reset;
+	end
+
+	always @* begin
+		dmem_r_bus_addr  = data_axi_ar_payload_addr;
+		dmem_r_bus_insn  = 0;
+		dmem_r_bus_data  = 1;
+		dmem_r_bus_rmask = {`RISCV_FORMAL_BUSLEN / 8{1'b1}};
+		dmem_r_bus_wmask = {`RISCV_FORMAL_BUSLEN / 8{1'b0}};
+		dmem_r_bus_rdata = next_data_axi_r_payload_data;
+		dmem_r_bus_wdata = 0;
+		dmem_r_bus_fault = 0;
+		dmem_r_bus_valid = next_data_axi_r_valid && data_axi_ar_valid && !dmem_req_r_valid_q;
+
+		data_axi_r_payload_resp = 2'b00;
+	end
+
+	// Data memory write channel
+	(* keep *) `rvformal_rand_reg next_data_axi_aw_ready; // also used for w
+	(* keep *) `rvformal_rand_reg next_data_axi_b_valid;
+
+	logic dmem_req_w_valid_q;
+
+	always @(posedge clock) begin
+		data_axi_aw_ready <= next_data_axi_aw_ready;
+		data_axi_w_ready <= next_data_axi_aw_ready;
+		data_axi_b_valid <= next_data_axi_b_valid && data_axi_aw_valid && !dmem_req_w_valid_q;
+		dmem_req_w_valid_q <= data_axi_aw_valid && !reset;
+	end
+
+	always @* begin
+		dmem_w_bus_addr  = data_axi_aw_payload_addr;
+		dmem_w_bus_insn  = 0;
+		dmem_w_bus_data  = 1;
+		dmem_w_bus_rmask = {`RISCV_FORMAL_BUSLEN / 8{1'b0}};
+		dmem_w_bus_wmask = data_axi_w_payload_strb;
+		dmem_w_bus_rdata = 0;
+		dmem_w_bus_wdata = data_axi_w_payload_data;
+		dmem_w_bus_fault = 0;
+		dmem_w_bus_valid = next_data_axi_b_valid && data_axi_aw_valid && !dmem_req_w_valid_q;
+
+		data_axi_b_payload_resp = 2'b00;
 	end
 `endif
 
+`ifdef NERV_FAIRNESS
+	reg [2:0] stalled = 0;
+	always @(posedge clock) begin
+		stalled <= {stalled, stall};
+		assume (~stalled);
+	end
+`endif
 endmodule
-
