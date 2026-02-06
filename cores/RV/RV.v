@@ -44,7 +44,7 @@ module RV (
   output reg           data_axi_aw_valid,
   input  wire          data_axi_aw_ready,
   output reg  [31:0]   data_axi_aw_payload_addr,
-  output reg  [2:0]    data_axi_aw_payload_prot,
+  output wire [2:0]    data_axi_aw_payload_prot,
   output reg           data_axi_w_valid,
   input  wire          data_axi_w_ready,
   output reg  [31:0]   data_axi_w_payload_data,
@@ -52,10 +52,10 @@ module RV (
   input  wire          data_axi_b_valid,
   output wire          data_axi_b_ready,
   input  wire [1:0]    data_axi_b_payload_resp,
-  output reg           data_axi_ar_valid,
+  output wire          data_axi_ar_valid,
   input  wire          data_axi_ar_ready,
-  output reg  [31:0]   data_axi_ar_payload_addr,
-  output reg  [2:0]    data_axi_ar_payload_prot,
+  output wire [31:0]   data_axi_ar_payload_addr,
+  output wire [2:0]    data_axi_ar_payload_prot,
   input  wire          data_axi_r_valid,
   output wire          data_axi_r_ready,
   input  wire [31:0]   data_axi_r_payload_data,
@@ -265,6 +265,7 @@ module RV (
   wire       [1:0]    execute_down_rvfi_ixl;
   wire       [1:0]    execute_down_rvfi_mode;
   wire       [4:0]    execute_down_decoder_RD_ADDR_FINAL;
+  reg                 _zz_execute_haltRequest_rv_l933;
   wire       [31:0]   execute_down_PC;
   wire       [8:0]    execute_down_decoder_OP1_OP2_LSB;
   wire                execute_up_isValid;
@@ -318,7 +319,7 @@ module RV (
   wire       [31:0]   fetch_down_INSTRUCTION;
   wire                fetch_up_valid;
   reg                 fetch_down_ready;
-  reg                 _zz_execute_haltRequest_rv_l279;
+  reg                 _zz_execute_haltRequest_rv_l287;
   reg        [63:0]   rvfiOrder;
   reg        [31:0]   Iptr;
   reg                 flush;
@@ -339,10 +340,21 @@ module RV (
   wire       [31:0]   memory_rdInst;
   wire       [31:0]   memory_rdPc;
   reg                 memory_loadPending;
+  reg                 memory_rdPending;
+  reg        [31:0]   memory_rdAddrReg;
+  reg                 memory_wrPending;
+  reg        [31:0]   memory_wrAddrReg;
+  reg        [31:0]   memory_wrDataReg;
+  reg        [3:0]    memory_wrStrbReg;
+  reg                 memory_awSeen;
+  reg                 memory_wSeen;
   wire                data_axi_r_fire;
-  wire                when_rv_l279;
-  wire                execute_haltRequest_rv_l279;
+  wire                when_rv_l287;
+  wire                execute_haltRequest_rv_l287;
   wire                data_axi_ar_fire;
+  wire                when_rv_l292;
+  wire                data_axi_aw_fire;
+  wire                data_axi_w_fire;
   wire       [31:0]   memory_instrReqAddr;
   wire                memory_instrReqValid;
   reg                 memory_instrPending;
@@ -353,7 +365,7 @@ module RV (
   wire                memory_instrReq_ready;
   wire                instr_axi_ar_fire;
   wire                instr_axi_r_fire;
-  wire                when_rv_l370;
+  wire                when_rv_l399;
   wire       [31:0]   decoder_instr;
   wire       [31:0]   decoder_pc;
   wire       [6:0]    decoder_opcode;
@@ -374,17 +386,17 @@ module RV (
   wire       [4:0]    decoder_mul_op;
   wire                decoder_valid;
   reg        [1:0]    decoder_op1_kind;
-  wire       [6:0]    switch_rv_l428;
-  wire                when_rv_l445;
-  wire                when_rv_l451;
-  wire                when_rv_l459;
-  wire                when_rv_l465;
-  wire       [2:0]    switch_rv_l471;
-  wire                when_rv_l489;
-  wire                when_rv_l496;
-  wire                when_rv_l506;
-  wire       [9:0]    switch_rv_l545;
-  wire                when_rv_l570;
+  wire       [6:0]    switch_rv_l457;
+  wire                when_rv_l474;
+  wire                when_rv_l480;
+  wire                when_rv_l488;
+  wire                when_rv_l494;
+  wire       [2:0]    switch_rv_l500;
+  wire                when_rv_l518;
+  wire                when_rv_l525;
+  wire                when_rv_l535;
+  wire       [9:0]    switch_rv_l574;
+  wire                when_rv_l599;
   wire                _zz_decoder_i_imm;
   reg        [19:0]   _zz_decoder_i_imm_1;
   wire       [31:0]   decoder_i_imm;
@@ -400,7 +412,7 @@ module RV (
   wire       [11:0]   _zz_decoder_u_imm;
   wire       [31:0]   decoder_u_imm;
   reg                 decoder_illegal_csr;
-  wire                when_rv_l620;
+  wire                when_rv_l649;
   wire                decoder_trap;
   wire                decoder_rs1_valid;
   wire                decoder_rs2_valid;
@@ -424,8 +436,8 @@ module RV (
   wire       [31:0]   exec_op2;
   wire       [20:0]   exec_imm;
   wire                exec_valid;
-  wire                fetch_throwWhen_rv_l762;
-  wire                decode_throwWhen_rv_l762;
+  wire                fetch_throwWhen_rv_l782;
+  wire                decode_throwWhen_rv_l782;
   reg                 exec_alu_rd_wr;
   reg        [31:0]   exec_alu_rd_wdata;
   wire                exec_alu_op_cin;
@@ -455,14 +467,18 @@ module RV (
   wire       [1:0]    exec_lsu_size;
   reg        [31:0]   exec_lsu_mem_wdata;
   reg        [31:0]   exec_lsu_loadData;
-  wire                when_rv_l884;
+  reg        [31:0]   exec_lsu_memRdData;
+  wire                when_rv_l905;
   reg        [31:0]   _zz_exec_lsu_mem_wdata;
-  reg        [3:0]    _zz_data_axi_w_payload_strb;
-  wire                when_rv_l893;
-  wire                when_rv_l895;
+  reg        [3:0]    _zz_memory_wrStrbReg;
+  wire                when_rv_l328;
+  wire                when_rv_l914;
+  wire                when_rv_l335;
+  wire                when_rv_l916;
   wire                _zz_exec_lsu_rd_wdata;
   wire       [31:0]   _zz_exec_lsu_rd_wdata_1;
   reg        [31:0]   _zz_exec_lsu_rd_wdata_2;
+  wire                execute_haltRequest_rv_l933;
   wire                exec_irq_taken;
   wire       [31:0]   exec_irq_target;
   wire                exec_mret_taken;
@@ -488,10 +504,15 @@ module RV (
   reg        [31:0]   _zz_exec_rd_wdata_4;
   reg        [31:0]   _zz_exec_rd_wdata_5;
   wire       [31:0]   exec_rd_wdata;
-  reg                 _zz_rvfi_valid;
-  wire                when_rv_l1212;
+  wire       [31:0]   exec_formal_execPc;
+  wire                exec_formal_haltRequest;
+  wire                exec_formal_rvfiCommit;
+  wire                when_rv_l1188;
+  wire                when_rv_l1233;
+  wire                when_rv_l1244;
   wire       [1:0]    _zz_rvfi_trap;
   wire       [1:0]    _zz_rvfi_trap_1;
+  wire                when_rv_l1279;
   wire                when_CtrlLink_l198;
   wire                when_CtrlLink_l202;
   wire                when_CtrlLink_l198_1;
@@ -739,9 +760,27 @@ module RV (
   `endif
 
   always @(*) begin
-    _zz_execute_haltRequest_rv_l279 = 1'b0;
-    if(when_rv_l279) begin
-      _zz_execute_haltRequest_rv_l279 = 1'b1;
+    _zz_execute_haltRequest_rv_l933 = 1'b0;
+    exec_lsu_rd_wr = 1'b0;
+    exec_lsu_rd_wdata = 32'h0;
+    exec_lsu_loadData = 32'h0;
+    exec_lsu_memRdData = 32'h0;
+    if(when_rv_l914) begin
+      if(when_rv_l916) begin
+        exec_lsu_rd_wr = 1'b1;
+        exec_lsu_memRdData = memory_rdData;
+        exec_lsu_rd_wdata = _zz_exec_lsu_rd_wdata_2;
+        exec_lsu_loadData = _zz_exec_lsu_rd_wdata_2;
+      end else begin
+        _zz_execute_haltRequest_rv_l933 = 1'b1;
+      end
+    end
+  end
+
+  always @(*) begin
+    _zz_execute_haltRequest_rv_l287 = 1'b0;
+    if(when_rv_l287) begin
+      _zz_execute_haltRequest_rv_l287 = 1'b1;
     end
   end
 
@@ -752,50 +791,34 @@ module RV (
   assign memory_rdData = data_axi_r_payload_data;
   assign data_axi_r_fire = (data_axi_r_valid && data_axi_r_ready);
   assign memory_readDone = data_axi_r_fire;
-  assign when_rv_l279 = (memory_loadPending && (! data_axi_r_fire));
-  assign execute_haltRequest_rv_l279 = _zz_execute_haltRequest_rv_l279;
+  assign when_rv_l287 = ((memory_rdPending || memory_loadPending) || memory_wrPending);
+  assign execute_haltRequest_rv_l287 = _zz_execute_haltRequest_rv_l287;
   assign data_axi_ar_fire = (data_axi_ar_valid && data_axi_ar_ready);
+  assign when_rv_l292 = ((memory_wrPending && memory_awSeen) && memory_wSeen);
   always @(*) begin
     data_axi_aw_valid = 1'b0;
     data_axi_aw_payload_addr = 32'h0;
-    data_axi_aw_payload_prot = 3'b000;
     data_axi_w_valid = 1'b0;
     data_axi_w_payload_data = 32'h0;
     data_axi_w_payload_strb = 4'b0000;
-    exec_lsu_mem_wdata = 32'h0;
-    if(when_rv_l884) begin
-      exec_lsu_mem_wdata = _zz_exec_lsu_mem_wdata;
-      data_axi_aw_payload_addr = exec_lsu_lsu_addr;
-      data_axi_aw_valid = (1'b1 && init);
-      data_axi_aw_payload_prot = 3'b000;
-      data_axi_w_payload_strb = (_zz_data_axi_w_payload_strb <<< exec_lsu_lsu_addr[1 : 0]);
-      data_axi_w_payload_data = exec_lsu_mem_wdata;
-      data_axi_w_valid = (1'b1 && init);
+    if(memory_wrPending) begin
+      data_axi_aw_valid = (! memory_awSeen);
+      data_axi_aw_payload_addr = memory_wrAddrReg;
+      data_axi_w_valid = (! memory_wSeen);
+      data_axi_w_payload_data = memory_wrDataReg;
+      data_axi_w_payload_strb = memory_wrStrbReg;
     end
   end
 
-  always @(*) begin
-    data_axi_ar_valid = 1'b0;
-    data_axi_ar_payload_addr = 32'h0;
-    data_axi_ar_payload_prot = 3'b000;
-    exec_lsu_rd_wr = 1'b0;
-    exec_lsu_rd_wdata = 32'h0;
-    exec_lsu_loadData = 32'h0;
-    if(when_rv_l893) begin
-      data_axi_ar_payload_addr = exec_lsu_lsu_addr;
-      data_axi_ar_valid = (1'b1 && init);
-      data_axi_ar_payload_prot = 3'b000;
-      if(when_rv_l895) begin
-        exec_lsu_rd_wr = 1'b1;
-        exec_lsu_rd_wdata = _zz_exec_lsu_rd_wdata_2;
-        exec_lsu_loadData = _zz_exec_lsu_rd_wdata_2;
-      end
-    end
-  end
-
+  assign data_axi_aw_payload_prot = 3'b000;
+  assign data_axi_ar_valid = memory_rdPending;
+  assign data_axi_ar_payload_addr = memory_rdAddrReg;
+  assign data_axi_ar_payload_prot = 3'b000;
   assign data_axi_b_ready = 1'b1;
   assign data_axi_r_ready = 1'b1;
-  assign instr_axi_ar_valid = (((memory_instrReqValid && (! memory_instrPending)) && (! flush)) && init);
+  assign data_axi_aw_fire = (data_axi_aw_valid && data_axi_aw_ready);
+  assign data_axi_w_fire = (data_axi_w_valid && data_axi_w_ready);
+  assign instr_axi_ar_valid = ((memory_instrReqValid && (! memory_instrPending)) && (! flush));
   assign instr_axi_ar_payload_addr = memory_instrReqAddr;
   assign instr_axi_ar_payload_prot = 3'b000;
   assign memory_instrReq_ready = (instr_axi_ar_ready && (! memory_instrPending));
@@ -806,7 +829,7 @@ module RV (
   assign memory_rdPc = memory_instrRspPcReg;
   assign memory_instrReqValid = fetcher_fetchFifo_io_push_ready;
   assign memory_instrReqAddr = Iptr;
-  assign when_rv_l370 = (memory_instrReqValid && memory_instrReq_ready);
+  assign when_rv_l399 = (memory_instrReqValid && memory_instrReq_ready);
   assign fetch_up_valid = fetcher_fetchFifo_io_pop_valid;
   assign fetch_down_INSTRUCTION = fetcher_fetchFifo_io_pop_payload_inst;
   assign fetch_down_PC = fetcher_fetchFifo_io_pop_payload_pc;
@@ -824,7 +847,7 @@ module RV (
     decoder_iformat = InstrFormat_R;
     decoder_itype = InstrType_Undef;
     decoder_op1_kind = Op1Kind_Rs1;
-    case(switch_rv_l428)
+    case(switch_rv_l457)
       7'h37 : begin
         decoder_itype = InstrType_ALU_ADD;
         decoder_iformat = InstrFormat_U;
@@ -841,13 +864,13 @@ module RV (
         decoder_op1_kind = Op1Kind_Pc;
       end
       7'h67 : begin
-        if(when_rv_l445) begin
+        if(when_rv_l474) begin
           decoder_itype = InstrType_JALR;
         end
         decoder_iformat = InstrFormat_I;
       end
       7'h63 : begin
-        if(when_rv_l451) begin
+        if(when_rv_l480) begin
           decoder_itype = InstrType_B;
         end
         decoder_iformat = InstrFormat_B;
@@ -855,19 +878,19 @@ module RV (
         decoder_sub = (decoder_funct3[2 : 1] != 2'b00);
       end
       7'h03 : begin
-        if(when_rv_l459) begin
+        if(when_rv_l488) begin
           decoder_itype = InstrType_L;
         end
         decoder_iformat = InstrFormat_I;
       end
       7'h23 : begin
-        if(when_rv_l465) begin
+        if(when_rv_l494) begin
           decoder_itype = InstrType_S;
         end
         decoder_iformat = InstrFormat_S;
       end
       7'h13 : begin
-        case(switch_rv_l471)
+        case(switch_rv_l500)
           3'b000 : begin
             decoder_itype = InstrType_ALU_ADD;
             decoder_iformat = InstrFormat_I;
@@ -883,13 +906,13 @@ module RV (
             decoder_iformat = InstrFormat_I;
           end
           3'b001 : begin
-            if(when_rv_l489) begin
+            if(when_rv_l518) begin
               decoder_itype = InstrType_SHIFT;
             end
             decoder_iformat = InstrFormat_Shamt;
           end
           default : begin
-            if(when_rv_l496) begin
+            if(when_rv_l525) begin
               decoder_itype = InstrType_SHIFT;
             end
             decoder_iformat = InstrFormat_Shamt;
@@ -898,7 +921,7 @@ module RV (
       end
       7'h33 : begin
         decoder_iformat = InstrFormat_R;
-        if(when_rv_l506) begin
+        if(when_rv_l535) begin
           case(decoder_funct3)
             3'b000 : begin
               decoder_itype = InstrType_Undef;
@@ -917,7 +940,7 @@ module RV (
             end
           endcase
         end else begin
-          case(switch_rv_l545)
+          case(switch_rv_l574)
             10'h0, 10'h100 : begin
               decoder_itype = InstrType_ALU_ADD;
               decoder_sub = decoder_funct7[5];
@@ -939,7 +962,7 @@ module RV (
         end
       end
       7'h73 : begin
-        if(when_rv_l570) begin
+        if(when_rv_l599) begin
           decoder_itype = InstrType_E;
           decoder_iformat = InstrFormat_I;
         end else begin
@@ -958,17 +981,17 @@ module RV (
   assign decoder_csr_cmd = CsrCmd_NONE;
   assign decoder_mul_op = MulOp_NONE;
   assign decoder_valid = decode_up_isValid;
-  assign switch_rv_l428 = decoder_opcode;
-  assign when_rv_l445 = (decoder_funct3 == 3'b000);
-  assign when_rv_l451 = ((decoder_funct3 != 3'b010) && (decoder_funct3 != 3'b011));
-  assign when_rv_l459 = (((decoder_funct3 != 3'b011) && (decoder_funct3 != 3'b110)) && (decoder_funct3 != 3'b111));
-  assign when_rv_l465 = (((decoder_funct3 == 3'b000) || (decoder_funct3 == 3'b001)) || (decoder_funct3 == 3'b010));
-  assign switch_rv_l471 = decoder_funct3;
-  assign when_rv_l489 = (decoder_funct7 == 7'h0);
-  assign when_rv_l496 = ((decoder_funct7 == 7'h0) || (decoder_funct7 == 7'h20));
-  assign when_rv_l506 = (decoder_funct7 == 7'h01);
-  assign switch_rv_l545 = {decoder_funct7,decoder_funct3};
-  assign when_rv_l570 = (decoder_funct3 == 3'b000);
+  assign switch_rv_l457 = decoder_opcode;
+  assign when_rv_l474 = (decoder_funct3 == 3'b000);
+  assign when_rv_l480 = ((decoder_funct3 != 3'b010) && (decoder_funct3 != 3'b011));
+  assign when_rv_l488 = (((decoder_funct3 != 3'b011) && (decoder_funct3 != 3'b110)) && (decoder_funct3 != 3'b111));
+  assign when_rv_l494 = (((decoder_funct3 == 3'b000) || (decoder_funct3 == 3'b001)) || (decoder_funct3 == 3'b010));
+  assign switch_rv_l500 = decoder_funct3;
+  assign when_rv_l518 = (decoder_funct7 == 7'h0);
+  assign when_rv_l525 = ((decoder_funct7 == 7'h0) || (decoder_funct7 == 7'h20));
+  assign when_rv_l535 = (decoder_funct7 == 7'h01);
+  assign switch_rv_l574 = {decoder_funct7,decoder_funct3};
+  assign when_rv_l599 = (decoder_funct3 == 3'b000);
   assign _zz_decoder_i_imm = decoder_instr[31];
   always @(*) begin
     _zz_decoder_i_imm_1[19] = _zz_decoder_i_imm;
@@ -1064,16 +1087,16 @@ module RV (
   assign decoder_u_imm = {decoder_instr[31 : 12],_zz_decoder_u_imm};
   always @(*) begin
     decoder_illegal_csr = 1'b0;
-    if(when_rv_l620) begin
+    if(when_rv_l649) begin
       decoder_illegal_csr = 1'b1;
     end
   end
 
-  assign when_rv_l620 = (decoder_itype[InstrType_CSR_OH_ID]);
+  assign when_rv_l649 = (decoder_itype[InstrType_CSR_OH_ID]);
   assign decoder_trap = ((decoder_itype[InstrType_Undef_OH_ID]) || decoder_illegal_csr);
   assign decoder_rs1_valid = (((((((decoder_iformat[InstrFormat_R_OH_ID]) || (decoder_iformat[InstrFormat_I_OH_ID])) || (decoder_iformat[InstrFormat_S_OH_ID])) || (decoder_iformat[InstrFormat_B_OH_ID])) || (decoder_iformat[InstrFormat_Shamt_OH_ID])) || ((decoder_iformat[InstrFormat_CSR_OH_ID]) && (! decoder_csr_use_imm))) && (! decoder_trap));
   assign decoder_rs2_valid = ((((decoder_iformat[InstrFormat_R_OH_ID]) || (decoder_iformat[InstrFormat_S_OH_ID])) || (decoder_iformat[InstrFormat_B_OH_ID])) && (! decoder_trap));
-  assign decoder_rd_valid = ((((((decoder_iformat[InstrFormat_R_OH_ID]) || (decoder_iformat[InstrFormat_I_OH_ID])) || (decoder_iformat[InstrFormat_U_OH_ID])) || (decoder_iformat[InstrFormat_J_OH_ID])) || (decoder_iformat[InstrFormat_Shamt_OH_ID])) || (decoder_iformat[InstrFormat_CSR_OH_ID]));
+  assign decoder_rd_valid = (((((((decoder_iformat[InstrFormat_R_OH_ID]) || (decoder_iformat[InstrFormat_I_OH_ID])) || (decoder_iformat[InstrFormat_U_OH_ID])) || (decoder_iformat[InstrFormat_J_OH_ID])) || (decoder_iformat[InstrFormat_Shamt_OH_ID])) || (decoder_iformat[InstrFormat_CSR_OH_ID])) && (! decoder_trap));
   assign decoder_rd_addr_final = (decoder_rd_valid ? decoder_rd_addr : 5'h0);
   assign decode_down_decoder_RD_ADDR_FINAL = decoder_rd_addr_final;
   assign decode_down_decoder_CSR_ADDR = decoder_csr_addr;
@@ -1151,7 +1174,6 @@ module RV (
   assign RegFile_rs1_rd_addr = decoder_rs1_addr;
   assign RegFile_rs2_rd_addr = decoder_rs2_addr;
   assign decode_down_rvfi_valid = decode_up_isValid;
-  assign decode_down_rvfi_order = rvfiOrder;
   assign decode_down_rvfi_insn = decoder_instr;
   assign decode_down_rvfi_trap = decoder_trap;
   assign decode_down_rvfi_halt = 1'b0;
@@ -1196,8 +1218,8 @@ module RV (
     end
   end
 
-  assign fetch_throwWhen_rv_l762 = flush;
-  assign decode_throwWhen_rv_l762 = flush;
+  assign fetch_throwWhen_rv_l782 = flush;
+  assign decode_throwWhen_rv_l782 = flush;
   always @(*) begin
     exec_alu_rd_wr = 1'b0;
     exec_alu_rd_wdata = exec_alu_rd_wdata_alu_add;
@@ -1302,7 +1324,14 @@ module RV (
   assign exec_jump_pc_jump = ((exec_jump_take_jump ? _zz_exec_jump_pc_jump : exec_jump_pc_plus4) & (~ _zz_exec_jump_pc_jump_2));
   assign exec_lsu_lsu_addr = exec_alu_rd_wdata_alu_add;
   assign exec_lsu_size = exec_funct3[1 : 0];
-  assign when_rv_l884 = (exec_itype[InstrType_S_OH_ID]);
+  always @(*) begin
+    exec_lsu_mem_wdata = 32'h0;
+    if(when_rv_l905) begin
+      exec_lsu_mem_wdata = _zz_exec_lsu_mem_wdata;
+    end
+  end
+
+  assign when_rv_l905 = (exec_itype[InstrType_S_OH_ID]);
   always @(*) begin
     case(exec_lsu_size)
       2'b00 : begin
@@ -1320,21 +1349,23 @@ module RV (
   always @(*) begin
     case(exec_lsu_size)
       2'b00 : begin
-        _zz_data_axi_w_payload_strb = 4'b0001;
+        _zz_memory_wrStrbReg = 4'b0001;
       end
       2'b01 : begin
-        _zz_data_axi_w_payload_strb = 4'b0011;
+        _zz_memory_wrStrbReg = 4'b0011;
       end
       default : begin
-        _zz_data_axi_w_payload_strb = 4'b1111;
+        _zz_memory_wrStrbReg = 4'b1111;
       end
     endcase
   end
 
-  assign when_rv_l893 = (exec_itype[InstrType_L_OH_ID]);
-  assign when_rv_l895 = (memory_readDone == 1'b1);
+  assign when_rv_l328 = (! memory_wrPending);
+  assign when_rv_l914 = (exec_itype[InstrType_L_OH_ID]);
+  assign when_rv_l335 = ((! memory_rdPending) && (! memory_loadPending));
+  assign when_rv_l916 = (memory_readDone == 1'b1);
   assign _zz_exec_lsu_rd_wdata = (! exec_funct3[2]);
-  assign _zz_exec_lsu_rd_wdata_1 = (memory_rdData >>> _zz__zz_exec_lsu_rd_wdata_1);
+  assign _zz_exec_lsu_rd_wdata_1 = (exec_lsu_memRdData >>> _zz__zz_exec_lsu_rd_wdata_1);
   always @(*) begin
     case(exec_lsu_size)
       2'b00 : begin
@@ -1349,6 +1380,7 @@ module RV (
     endcase
   end
 
+  assign execute_haltRequest_rv_l933 = _zz_execute_haltRequest_rv_l933;
   assign exec_irq_taken = 1'b0;
   assign exec_irq_target = 32'h0;
   assign exec_mret_taken = 1'b0;
@@ -1581,11 +1613,17 @@ module RV (
   assign RegFile_rd_wr = exec_rd_wr;
   assign RegFile_rd_wr_addr = execute_down_decoder_RD_ADDR_FINAL;
   assign RegFile_rd_wr_data = exec_rd_wdata;
-  assign when_rv_l1212 = ((execute_up_isValid && exec_jump_pc_jump_valid) && (! (exec_jump_pc_jump[1 : 0] == 2'b00)));
+  assign exec_formal_execPc = execute_down_PC;
+  assign exec_formal_haltRequest = (memory_loadPending && (! memory_readDone));
+  assign exec_formal_rvfiCommit = ((decode_up_isValid || exec_irq_taken) && (! exec_formal_haltRequest));
+  assign when_rv_l1188 = (execute_up_isValid && (! exec_formal_haltRequest));
+  assign when_rv_l1233 = (execute_up_isValid && (! exec_formal_haltRequest));
+  assign when_rv_l1244 = ((execute_up_isValid && exec_jump_pc_jump_valid) && (! (exec_jump_pc_jump[1 : 0] == 2'b00)));
   assign _zz_rvfi_trap = exec_funct3[1 : 0];
   assign _zz_rvfi_trap_1 = exec_funct3[1 : 0];
-  assign decode_up_cancel = (|decode_throwWhen_rv_l762);
-  assign fetch_up_cancel = (|fetch_throwWhen_rv_l762);
+  assign when_rv_l1279 = (exec_irq_taken && (! exec_formal_haltRequest));
+  assign decode_up_cancel = (|decode_throwWhen_rv_l782);
+  assign fetch_up_cancel = (|fetch_throwWhen_rv_l782);
   always @(*) begin
     fetch_down_valid = fetch_up_valid;
     if(when_CtrlLink_l198) begin
@@ -1600,8 +1638,8 @@ module RV (
     end
   end
 
-  assign when_CtrlLink_l198 = (|fetch_throwWhen_rv_l762);
-  assign when_CtrlLink_l202 = (|fetch_throwWhen_rv_l762);
+  assign when_CtrlLink_l198 = (|fetch_throwWhen_rv_l782);
+  assign when_CtrlLink_l202 = (|fetch_throwWhen_rv_l782);
   always @(*) begin
     decode_down_valid = decode_up_valid;
     if(when_CtrlLink_l198_1) begin
@@ -1616,8 +1654,8 @@ module RV (
     end
   end
 
-  assign when_CtrlLink_l198_1 = (|decode_throwWhen_rv_l762);
-  assign when_CtrlLink_l202_1 = (|decode_throwWhen_rv_l762);
+  assign when_CtrlLink_l198_1 = (|decode_throwWhen_rv_l782);
+  assign when_CtrlLink_l202_1 = (|decode_throwWhen_rv_l782);
   assign decode_down_INSTRUCTION = decode_up_INSTRUCTION;
   assign decode_down_PC = decode_up_PC;
   always @(*) begin
@@ -1629,7 +1667,7 @@ module RV (
     end
   end
 
-  assign when_CtrlLink_l191 = (|execute_haltRequest_rv_l279);
+  assign when_CtrlLink_l191 = (|{execute_haltRequest_rv_l933,execute_haltRequest_rv_l287});
   assign execute_down_INSTRUCTION = execute_up_INSTRUCTION;
   assign execute_down_PC = execute_up_PC;
   assign execute_down_decoder_RD_ADDR_FINAL = execute_up_decoder_RD_ADDR_FINAL;
@@ -1724,6 +1762,14 @@ module RV (
       irqSyncStage0 <= 1'b0;
       irqSync <= 1'b0;
       memory_loadPending <= 1'b0;
+      memory_rdPending <= 1'b0;
+      memory_rdAddrReg <= 32'h0;
+      memory_wrPending <= 1'b0;
+      memory_wrAddrReg <= 32'h0;
+      memory_wrDataReg <= 32'h0;
+      memory_wrStrbReg <= 4'b0000;
+      memory_awSeen <= 1'b0;
+      memory_wSeen <= 1'b0;
       memory_instrPending <= 1'b0;
       memory_instrAddrReg <= 32'h0;
       memory_instrRspValidReg <= 1'b0;
@@ -1739,7 +1785,19 @@ module RV (
         memory_loadPending <= 1'b0;
       end
       if(data_axi_ar_fire) begin
+        memory_rdPending <= 1'b0;
         memory_loadPending <= 1'b1;
+      end
+      if(when_rv_l292) begin
+        memory_wrPending <= 1'b0;
+        memory_awSeen <= 1'b0;
+        memory_wSeen <= 1'b0;
+      end
+      if(data_axi_aw_fire) begin
+        memory_awSeen <= 1'b1;
+      end
+      if(data_axi_w_fire) begin
+        memory_wSeen <= 1'b1;
       end
       if(instr_axi_ar_fire) begin
         memory_instrPending <= 1'b1;
@@ -1759,14 +1817,29 @@ module RV (
         memory_instrPending <= 1'b0;
         memory_instrRspValidReg <= 1'b0;
       end
-      if(when_rv_l370) begin
+      if(when_rv_l399) begin
         Iptr <= (Iptr + 32'h00000004);
-      end
-      if(decode_up_isValid) begin
-        rvfiOrder <= (rvfiOrder + 64'h0000000000000001);
       end
       if(exec_jump_take_jump) begin
         Iptr <= exec_jump_pc_jump;
+      end
+      if(when_rv_l905) begin
+        if(execute_up_isValid) begin
+          memory_wrAddrReg <= exec_lsu_lsu_addr;
+          memory_wrStrbReg <= (_zz_memory_wrStrbReg <<< exec_lsu_lsu_addr[1 : 0]);
+          memory_wrDataReg <= exec_lsu_mem_wdata;
+          if(when_rv_l328) begin
+            memory_wrPending <= 1'b1;
+          end
+        end
+      end
+      if(when_rv_l914) begin
+        if(execute_up_isValid) begin
+          memory_rdAddrReg <= exec_lsu_lsu_addr;
+          if(when_rv_l335) begin
+            memory_rdPending <= 1'b1;
+          end
+        end
       end
       if(exec_irq_taken) begin
         Iptr <= exec_irq_target;
@@ -1779,10 +1852,13 @@ module RV (
           end
         end
       end
-      rvfi_valid <= _zz_rvfi_valid;
-      if(execute_up_isValid) begin
-        rvfi_order <= execute_down_rvfi_order;
-        rvfi_pc_rdata <= execute_down_rvfi_pc_rdata;
+      if(exec_formal_rvfiCommit) begin
+        rvfiOrder <= (rvfiOrder + 64'h0000000000000001);
+      end
+      rvfi_valid <= exec_formal_rvfiCommit;
+      if(when_rv_l1188) begin
+        rvfi_order <= rvfiOrder;
+        rvfi_pc_rdata <= exec_formal_execPc;
         rvfi_insn <= execute_down_rvfi_insn;
         rvfi_trap <= execute_down_rvfi_trap;
         rvfi_halt <= execute_down_rvfi_halt;
@@ -1822,11 +1898,11 @@ module RV (
         rvfi_ixl <= 2'b01;
         rvfi_mode <= 2'b11;
       end
-      if(execute_up_isValid) begin
-        if(exec_jump_pc_jump_valid) begin
+      if(when_rv_l1233) begin
+        if(exec_jump_take_jump) begin
           rvfi_pc_wdata <= exec_jump_pc_jump;
         end else begin
-          rvfi_pc_wdata <= (execute_down_rvfi_pc_rdata + 32'h00000004);
+          rvfi_pc_wdata <= (exec_formal_execPc + 32'h00000004);
         end
       end
       (* parallel_case *)
@@ -1834,7 +1910,7 @@ module RV (
         (exec_itype[InstrType_B_OH_ID])|
         (exec_itype[InstrType_JAL_OH_ID])|
         (exec_itype[InstrType_JALR_OH_ID]) : begin
-          if(when_rv_l1212) begin
+          if(when_rv_l1244) begin
             rvfi_trap <= 1'b1;
           end
         end
@@ -1842,8 +1918,9 @@ module RV (
           if(execute_up_isValid) begin
             rvfi_mem_addr <= {exec_lsu_lsu_addr[31 : 2],2'b00};
             rvfi_mem_rmask <= (((_zz_rvfi_trap == 2'b00) ? 4'b0001 : ((_zz_rvfi_trap == 2'b01) ? 4'b0011 : 4'b1111)) <<< exec_lsu_lsu_addr[1 : 0]);
+            rvfi_mem_wmask <= 4'b0000;
             if(memory_readDone) begin
-              rvfi_mem_rdata <= exec_lsu_loadData;
+              rvfi_mem_rdata <= exec_lsu_memRdData;
             end
             rvfi_trap <= (((_zz_rvfi_trap == 2'b01) && exec_lsu_lsu_addr[0]) || ((_zz_rvfi_trap == 2'b10) && (! (exec_lsu_lsu_addr[1 : 0] == 2'b00))));
           end
@@ -1852,6 +1929,7 @@ module RV (
           if(execute_up_isValid) begin
             rvfi_mem_addr <= {exec_lsu_lsu_addr[31 : 2],2'b00};
             rvfi_mem_wmask <= (((_zz_rvfi_trap_1 == 2'b00) ? 4'b0001 : ((_zz_rvfi_trap_1 == 2'b01) ? 4'b0011 : 4'b1111)) <<< exec_lsu_lsu_addr[1 : 0]);
+            rvfi_mem_rmask <= 4'b0000;
             rvfi_mem_wdata <= exec_lsu_mem_wdata;
             rvfi_trap <= (((_zz_rvfi_trap_1 == 2'b01) && exec_lsu_lsu_addr[0]) || ((_zz_rvfi_trap_1 == 2'b10) && (! (exec_lsu_lsu_addr[1 : 0] == 2'b00))));
           end
@@ -1859,7 +1937,7 @@ module RV (
         default : begin
         end
       endcase
-      if(exec_irq_taken) begin
+      if(when_rv_l1279) begin
         rvfi_order <= rvfiOrder;
         rvfi_pc_rdata <= Iptr;
         rvfi_insn <= 32'h00000013;
@@ -1897,7 +1975,6 @@ module RV (
   end
 
   always @(posedge clk) begin
-    _zz_rvfi_valid <= (execute_up_isValid || exec_irq_taken);
     if(fetch_down_isReady) begin
       decode_up_INSTRUCTION <= fetch_down_INSTRUCTION;
       decode_up_PC <= fetch_down_PC;

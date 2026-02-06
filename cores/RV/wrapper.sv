@@ -9,52 +9,43 @@ module rvfi_wrapper (
 	(* keep *) `rvformal_rand_reg  irq;
 
 
-	wire 		imem_req_valid;
-
-	
-
-	wire 		dmem_req_r_valid;
-	wire 		dmem_req_w_valid;
-
-
-
 	localparam AXI_DATA_WIDTH = 32;
 	localparam AXI_ADDRESS_WIDTH = 32;
 
 	localparam AXI_STRB_WIDTH = AXI_DATA_WIDTH / 8;
 
 	// Instruction AXI read channel (AXI4-lite style)
-	wire                       instr_axi_ar_valid;
-	logic                      instr_axi_ar_ready;
-	wire [31:0]                instr_axi_ar_payload_addr;
-	wire [2:0]                 instr_axi_ar_payload_prot;
-	logic                      instr_axi_r_valid;
-	wire                       instr_axi_r_ready;
-	logic [31:0]               instr_axi_r_payload_data;
-	logic [1:0]                instr_axi_r_payload_resp;
+	(* keep *)  wire                       instr_axi_ar_valid;
+	(* keep *)  logic                      instr_axi_ar_ready;
+	(* keep *)  wire [31:0]                instr_axi_ar_payload_addr;
+	(* keep *)  wire [2:0]                 instr_axi_ar_payload_prot;
+	(* keep *)  logic                      instr_axi_r_valid;
+	(* keep *)  wire                       instr_axi_r_ready;
+	(* keep *)  logic [31:0]               instr_axi_r_payload_data;
+	(* keep *)  logic [1:0]                instr_axi_r_payload_resp;
 
 
 
 	// Data AXI read/write channels (AXI4-lite style)
-	wire                       data_axi_aw_valid;
-	logic                      data_axi_aw_ready;
-	wire [31:0]                data_axi_aw_payload_addr;
-	wire [2:0]                 data_axi_aw_payload_prot;
-	wire                       data_axi_w_valid;
-	logic                      data_axi_w_ready;
-	wire [31:0]                data_axi_w_payload_data;
-	wire [3:0]                 data_axi_w_payload_strb;
-	logic                      data_axi_b_valid;
-	wire                       data_axi_b_ready;
-	logic [1:0]                data_axi_b_payload_resp;
-	wire                       data_axi_ar_valid;
-	logic                      data_axi_ar_ready;
-	wire [31:0]                data_axi_ar_payload_addr;
-	wire [2:0]                 data_axi_ar_payload_prot;
-	logic                      data_axi_r_valid;
-	wire                       data_axi_r_ready;
-	logic [31:0]               data_axi_r_payload_data;
-	logic [1:0]                data_axi_r_payload_resp;
+	(* keep *)  wire                       data_axi_aw_valid;
+	(* keep *)  logic                      data_axi_aw_ready;
+	(* keep *)  wire [31:0]                data_axi_aw_payload_addr;
+	(* keep *)  wire [2:0]                 data_axi_aw_payload_prot;
+	(* keep *)  wire                       data_axi_w_valid;
+	(* keep *)  logic                      data_axi_w_ready;
+	(* keep *)  wire [31:0]                data_axi_w_payload_data;
+	(* keep *)  wire [3:0]                 data_axi_w_payload_strb;
+	(* keep *)  logic                      data_axi_b_valid;
+	(* keep *)  wire                       data_axi_b_ready;
+	(* keep *)  logic [1:0]                data_axi_b_payload_resp;
+	(* keep *)  wire                       data_axi_ar_valid;
+	(* keep *)  logic                      data_axi_ar_ready;
+	(* keep *)  wire [31:0]                data_axi_ar_payload_addr;
+	(* keep *)  wire [2:0]                 data_axi_ar_payload_prot;
+	(* keep *)  logic                      data_axi_r_valid;
+	(* keep *)  wire                       data_axi_r_ready;
+	(* keep *)  logic [31:0]               data_axi_r_payload_data;
+	(* keep *)  logic [1:0]                data_axi_r_payload_resp;
 
 
 	(* keep *) wire trap;
@@ -151,7 +142,7 @@ module rvfi_wrapper (
 
    // Data memory read channel
 	(* keep *) `rvformal_rand_reg [`RISCV_FORMAL_BUSLEN-1:0] next_data_axi_r_payload_data;
-	//(* keep *) `rvformal_rand_reg data_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg next_data_axi_ar_ready;
 	(* keep *) `rvformal_rand_reg next_data_axi_r_valid;
 
 
@@ -159,7 +150,7 @@ module rvfi_wrapper (
 	logic dmem_req_r_valid_q;
 
 	always @(posedge clock) begin
-		data_axi_ar_ready <= 1;
+		data_axi_ar_ready <= next_data_axi_ar_ready;
 		data_axi_r_payload_data <= next_data_axi_r_payload_data;
 		data_axi_r_valid <= next_data_axi_r_valid && data_axi_ar_valid && !dmem_req_r_valid_q ;
 		dmem_req_r_valid_q <= data_axi_ar_valid && !reset;
@@ -205,6 +196,73 @@ module rvfi_wrapper (
 
 		data_axi_b_payload_resp = 2'b00;
 	end
+`endif
+`ifndef RISCV_FORMAL_BUS
+/*
+	// Minimal abstract AXI responses for non-bus checks
+	(* keep *) `rvformal_rand_reg [31:0] instr_axi_r_payload_data;
+	(* keep *) `rvformal_rand_reg instr_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg instr_axi_r_valid;
+
+	
+
+
+	
+	(* keep *) `rvformal_rand_reg [31:0] data_axi_r_payload_data;
+	(* keep *) `rvformal_rand_reg data_axi_ar_ready;
+	//assign data_axi_ar_ready = 1 ;
+	(* keep *) `rvformal_rand_reg data_axi_r_valid;
+	(* keep *) `rvformal_rand_reg data_axi_aw_ready;
+	(* keep *) `rvformal_rand_reg data_axi_b_valid;
+	
+*/
+ 
+
+
+	// Minimal abstract AXI responses for non-bus checks
+	(* keep *) `rvformal_rand_reg [31:0] next_instr_axi_r_payload_data;
+	(* keep *) `rvformal_rand_reg next_instr_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg next_instr_axi_r_valid;
+
+	logic imem_req_valid_q_nbus;
+
+	wire instr_ar_fire_nbus = instr_axi_ar_valid && instr_axi_ar_ready;
+
+	always @(posedge clock) begin
+		instr_axi_ar_ready <= next_instr_axi_ar_ready;
+		instr_axi_r_payload_data <= next_instr_axi_r_payload_data;
+		instr_axi_r_valid <= next_instr_axi_r_valid && instr_ar_fire_nbus && !imem_req_valid_q_nbus;
+		imem_req_valid_q_nbus <= instr_ar_fire_nbus && !reset;
+		instr_axi_r_payload_resp <= 2'b00;
+	end
+
+	(* keep *) `rvformal_rand_reg [31:0] next_data_axi_r_payload_data;
+	(* keep *) `rvformal_rand_reg next_data_axi_ar_ready;
+	(* keep *) `rvformal_rand_reg next_data_axi_r_valid;
+	(* keep *) `rvformal_rand_reg next_data_axi_aw_ready;
+	(* keep *) `rvformal_rand_reg next_data_axi_b_valid;
+
+	logic dmem_req_r_valid_q_nbus;
+	logic dmem_req_w_valid_q_nbus;
+
+	wire data_ar_fire_nbus = data_axi_ar_valid && data_axi_ar_ready;
+	wire data_aw_fire_nbus = data_axi_aw_valid && data_axi_aw_ready;
+	wire data_w_fire_nbus = data_axi_w_valid && data_axi_w_ready;
+
+	always @(posedge clock) begin
+		data_axi_ar_ready <= next_data_axi_ar_ready;
+		data_axi_r_payload_data <= next_data_axi_r_payload_data;
+		data_axi_r_valid <= next_data_axi_r_valid && data_ar_fire_nbus && !dmem_req_r_valid_q_nbus;
+		dmem_req_r_valid_q_nbus <= data_ar_fire_nbus && !reset;
+		data_axi_r_payload_resp <= 2'b00;
+
+		data_axi_aw_ready <= next_data_axi_aw_ready;
+		data_axi_w_ready <= next_data_axi_aw_ready;
+		data_axi_b_valid <= next_data_axi_b_valid && data_aw_fire_nbus && data_w_fire_nbus && !dmem_req_w_valid_q_nbus;
+		dmem_req_w_valid_q_nbus <= (data_aw_fire_nbus && data_w_fire_nbus) && !reset;
+		data_axi_b_payload_resp <= 2'b00;
+	end
+ 
 `endif
 
 `ifdef NERV_FAIRNESS
