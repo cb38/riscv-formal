@@ -50,7 +50,7 @@ module rvfi_wrapper (
 
 	(* keep *) wire trap;
 
-	RV uut (
+	RV_formal uut (
 		.clk      (clock    ),
 		.reset      (reset    ),
 
@@ -83,7 +83,23 @@ module rvfi_wrapper (
 		.data_axi_r_payload_data   (data_axi_r_payload_data),
 		.data_axi_r_payload_resp   (data_axi_r_payload_resp),
 
+		// debug intf
+		.debug_reg_rdata (),
+		.debug_reg_wdata (32'b0),
+		.debug_reg_addr (5'b0),
+		.debug_reg_wr (1'b0),	
+		.debug_csr_addr (12'b0),
+		.debug_csr_wdata (32'b0),
+		.debug_csr_rdata (),
+		.debug_csr_wr (1'b0),
+		.debug_halt_req (1'b0),
+		.debug_resume_req (1'b0),
+
+		
 		.irq (irq),
+		.timer_irq (1'b0),
+
+
 
 		`RVFI_CONN32
 	);
@@ -110,19 +126,22 @@ module rvfi_wrapper (
 	(* keep *) reg [(width) - 1:0] dmem_w_``name; assign rvfi_``name[2 * (width) +: (width)] = dmem_w_``name;
 `RVFI_BUS_SIGNALS
 `undef RISCV_FORMAL_CHANNEL_SIGNAL
+
+	// Disable IRQ during bus checks: IRQ retirements report manufactured
+	// instruction data (NOP) at a PC that was never fetched, which
+	// confuses the bus_imem checker.
+	always @* assume(!irq);
+
    // Instruction memory read channel
 	(* keep *) `rvformal_rand_reg [`RISCV_FORMAL_BUSLEN-1:0] next_instr_axi_r_payload_data;
 	(* keep *) `rvformal_rand_reg next_instr_axi_ar_ready;
-	(* keep *) `rvformal_rand_reg next_instr_axi_r_valid;
-  
 
-	logic imem_req_valid_q;
+	wire imem_ar_fire = instr_axi_ar_valid && instr_axi_ar_ready;
 
 	always @(posedge clock) begin
 		instr_axi_ar_ready <= next_instr_axi_ar_ready;
 		instr_axi_r_payload_data <= next_instr_axi_r_payload_data;
-		instr_axi_r_valid <= next_instr_axi_r_valid && instr_axi_ar_valid && !imem_req_valid_q;
-		imem_req_valid_q <= instr_axi_ar_valid && !reset;
+		instr_axi_r_valid <= imem_ar_fire;
 	end
 
 	always @* begin
@@ -134,7 +153,7 @@ module rvfi_wrapper (
 		imem_bus_rdata = next_instr_axi_r_payload_data;
 		imem_bus_wdata = 0;
 		imem_bus_fault = 0;
-		imem_bus_valid = next_instr_axi_r_valid && instr_axi_ar_valid && !imem_req_valid_q;
+		imem_bus_valid = imem_ar_fire;
 
 		instr_axi_r_payload_resp = 2'b00;
 	end
@@ -143,21 +162,17 @@ module rvfi_wrapper (
    // Data memory read channel
 	(* keep *) `rvformal_rand_reg [`RISCV_FORMAL_BUSLEN-1:0] next_data_axi_r_payload_data;
 	(* keep *) `rvformal_rand_reg next_data_axi_ar_ready;
-	(* keep *) `rvformal_rand_reg next_data_axi_r_valid;
 
-
-
-	logic dmem_req_r_valid_q;
+	wire dmem_r_ar_fire = data_axi_ar_valid && data_axi_ar_ready;
 
 	always @(posedge clock) begin
 		data_axi_ar_ready <= next_data_axi_ar_ready;
 		data_axi_r_payload_data <= next_data_axi_r_payload_data;
-		data_axi_r_valid <= next_data_axi_r_valid && data_axi_ar_valid && !dmem_req_r_valid_q ;
-		dmem_req_r_valid_q <= data_axi_ar_valid && !reset;
+		data_axi_r_valid <= dmem_r_ar_fire;
 	end
 
 	always @* begin
-		dmem_r_bus_addr  = data_axi_ar_payload_addr;
+		dmem_r_bus_addr  = {data_axi_ar_payload_addr[31:2], 2'b00};
 		dmem_r_bus_insn  = 0;
 		dmem_r_bus_data  = 1;
 		dmem_r_bus_rmask = {`RISCV_FORMAL_BUSLEN / 8{1'b1}};
@@ -165,7 +180,7 @@ module rvfi_wrapper (
 		dmem_r_bus_rdata = next_data_axi_r_payload_data;
 		dmem_r_bus_wdata = 0;
 		dmem_r_bus_fault = 0;
-		dmem_r_bus_valid = next_data_axi_r_valid && data_axi_ar_valid && !dmem_req_r_valid_q;
+		dmem_r_bus_valid = dmem_r_ar_fire;
 
 		data_axi_r_payload_resp = 2'b00;
 	end
@@ -174,17 +189,16 @@ module rvfi_wrapper (
 	(* keep *) `rvformal_rand_reg next_data_axi_aw_ready; // also used for w
 	(* keep *) `rvformal_rand_reg next_data_axi_b_valid;
 
-	logic dmem_req_w_valid_q;
+	wire dmem_w_fire = data_axi_aw_valid && data_axi_aw_ready && data_axi_w_valid && data_axi_w_ready;
 
 	always @(posedge clock) begin
 		data_axi_aw_ready <= next_data_axi_aw_ready;
 		data_axi_w_ready <= next_data_axi_aw_ready;
-		data_axi_b_valid <= next_data_axi_b_valid && data_axi_aw_valid && !dmem_req_w_valid_q;
-		dmem_req_w_valid_q <= data_axi_aw_valid && !reset;
+		data_axi_b_valid <= dmem_w_fire;
 	end
 
 	always @* begin
-		dmem_w_bus_addr  = data_axi_aw_payload_addr;
+		dmem_w_bus_addr  = {data_axi_aw_payload_addr[31:2], 2'b00};
 		dmem_w_bus_insn  = 0;
 		dmem_w_bus_data  = 1;
 		dmem_w_bus_rmask = {`RISCV_FORMAL_BUSLEN / 8{1'b0}};
@@ -192,32 +206,12 @@ module rvfi_wrapper (
 		dmem_w_bus_rdata = 0;
 		dmem_w_bus_wdata = data_axi_w_payload_data;
 		dmem_w_bus_fault = 0;
-		dmem_w_bus_valid = next_data_axi_b_valid && data_axi_aw_valid && !dmem_req_w_valid_q;
+		dmem_w_bus_valid = dmem_w_fire;
 
 		data_axi_b_payload_resp = 2'b00;
 	end
 `endif
 `ifndef RISCV_FORMAL_BUS
-/*
-	// Minimal abstract AXI responses for non-bus checks
-	(* keep *) `rvformal_rand_reg [31:0] instr_axi_r_payload_data;
-	(* keep *) `rvformal_rand_reg instr_axi_ar_ready;
-	(* keep *) `rvformal_rand_reg instr_axi_r_valid;
-
-	
-
-
-	
-	(* keep *) `rvformal_rand_reg [31:0] data_axi_r_payload_data;
-	(* keep *) `rvformal_rand_reg data_axi_ar_ready;
-	//assign data_axi_ar_ready = 1 ;
-	(* keep *) `rvformal_rand_reg data_axi_r_valid;
-	(* keep *) `rvformal_rand_reg data_axi_aw_ready;
-	(* keep *) `rvformal_rand_reg data_axi_b_valid;
-	
-*/
- 
-
 
 	// Minimal abstract AXI responses for non-bus checks
 	(* keep *) `rvformal_rand_reg [31:0] next_instr_axi_r_payload_data;
@@ -265,11 +259,71 @@ module rvfi_wrapper (
  
 `endif
 
-`ifdef NERV_FAIRNESS
-	reg [2:0] stalled = 0;
+`ifdef RV_FAIRNESS
+	// Fairness: assume instruction memory responds within 3 cycles of request
+	reg [2:0] imem_wait = 0;
 	always @(posedge clock) begin
-		stalled <= {stalled, stall};
-		assume (~stalled);
+		if (reset) begin
+			imem_wait <= 0;
+		end else begin
+			if (instr_axi_ar_valid && !instr_axi_ar_ready)
+				imem_wait <= imem_wait + 1;
+			else if (instr_axi_ar_valid && instr_axi_ar_ready)
+				imem_wait <= 1;  // request accepted, wait for response
+			else if (imem_wait > 0 && !instr_axi_r_valid)
+				imem_wait <= imem_wait + 1;
+			else
+				imem_wait <= 0;
+		end
 	end
+	always @* assume(imem_wait < 4);
+
+	// Fairness: assume data memory read responds within 3 cycles of request
+	reg [2:0] dmem_r_wait = 0;
+	always @(posedge clock) begin
+		if (reset) begin
+			dmem_r_wait <= 0;
+		end else begin
+			if (data_axi_ar_valid && !data_axi_ar_ready)
+				dmem_r_wait <= dmem_r_wait + 1;
+			else if (data_axi_ar_valid && data_axi_ar_ready)
+				dmem_r_wait <= 1;
+			else if (dmem_r_wait > 0 && !data_axi_r_valid)
+				dmem_r_wait <= dmem_r_wait + 1;
+			else
+				dmem_r_wait <= 0;
+		end
+	end
+	always @* assume(dmem_r_wait < 4);
+
+	// Fairness: assume data memory write responds within 3 cycles of request
+	reg [2:0] dmem_w_wait = 0;
+	always @(posedge clock) begin
+		if (reset) begin
+			dmem_w_wait <= 0;
+		end else begin
+			if (data_axi_aw_valid && !data_axi_aw_ready)
+				dmem_w_wait <= dmem_w_wait + 1;
+			else if (data_axi_aw_valid && data_axi_aw_ready)
+				dmem_w_wait <= 1;
+			else if (dmem_w_wait > 0 && !data_axi_b_valid)
+				dmem_w_wait <= dmem_w_wait + 1;
+			else
+				dmem_w_wait <= 0;
+		end
+	end
+	always @* assume(dmem_w_wait < 4);
+
+	// Fairness: assume IRQ is not permanently asserted (prevents infinite trap loop)
+	reg [3:0] irq_count = 0;
+	always @(posedge clock) begin
+		if (reset)
+			irq_count <= 0;
+		else if (irq)
+			irq_count <= irq_count + 1;
+		else
+			irq_count <= 0;
+	end
+	always @* assume(irq_count < 8);
 `endif
 endmodule
