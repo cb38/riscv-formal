@@ -104,6 +104,19 @@ module rvfi_wrapper (
 		`RVFI_CONN32
 	);
 
+	// Prevent trap/exception paths: irq_taken generates virtual retirements
+	// with manufactured instruction data (insn=0) at PCs never fetched.
+	// This breaks bus_imem, bus_dmem, pc_fwd, and liveness checks.
+	// (Same approach as MR1 and VexRiscv wrappers.)
+	// Disabled for ill/csr_ill checks which need trap to fire:
+	//   - ill:     gated by RISCV_FORMAL_TRAP_CHECK (via [defines ill])
+	//   - csr_ill: gated by RISCV_FORMAL_ILL_CSR_ADDR (auto-defined by genchecks)
+`ifndef RISCV_FORMAL_TRAP_CHECK
+`ifndef RISCV_FORMAL_ILL_CSR_ADDR
+	always @* assume(!rvfi_trap);
+`endif
+`endif
+
 `ifndef RISCV_FORMAL_MEM_FAULT
 	always @* assume(!instr_axi_r_payload_resp[1]);
 	always @* assume(!data_axi_r_payload_resp[1]);
@@ -213,13 +226,16 @@ module rvfi_wrapper (
 `endif
 `ifndef RISCV_FORMAL_BUS
 
-	// Minimal abstract AXI responses for non-bus checks
+	// Minimal abstract AXI responses for non-bus checks.
+
+	// Instruction memory: old model (response exactly 1 cycle after fire).
+	// Fairness constraints force next_instr_axi_r_valid=1 at fire cycle,
+	// so response is always immediate. This is correct and proven by pc_fwd.
 	(* keep *) `rvformal_rand_reg [31:0] next_instr_axi_r_payload_data;
 	(* keep *) `rvformal_rand_reg next_instr_axi_ar_ready;
 	(* keep *) `rvformal_rand_reg next_instr_axi_r_valid;
 
 	logic imem_req_valid_q_nbus;
-
 	wire instr_ar_fire_nbus = instr_axi_ar_valid && instr_axi_ar_ready;
 
 	always @(posedge clock) begin
@@ -230,14 +246,17 @@ module rvfi_wrapper (
 		instr_axi_r_payload_resp <= 2'b00;
 	end
 
+	// Data memory: persistent pending model so responses can arrive at
+	// any cycle after request fire (not just the first), allowing fairness
+	// constraints to properly bind for liveness.
 	(* keep *) `rvformal_rand_reg [31:0] next_data_axi_r_payload_data;
 	(* keep *) `rvformal_rand_reg next_data_axi_ar_ready;
 	(* keep *) `rvformal_rand_reg next_data_axi_r_valid;
 	(* keep *) `rvformal_rand_reg next_data_axi_aw_ready;
 	(* keep *) `rvformal_rand_reg next_data_axi_b_valid;
 
-	logic dmem_req_r_valid_q_nbus;
-	logic dmem_req_w_valid_q_nbus;
+	logic dmem_r_pending = 0;
+	logic dmem_w_pending = 0;
 
 	wire data_ar_fire_nbus = data_axi_ar_valid && data_axi_ar_ready;
 	wire data_aw_fire_nbus = data_axi_aw_valid && data_axi_aw_ready;
@@ -246,15 +265,32 @@ module rvfi_wrapper (
 	always @(posedge clock) begin
 		data_axi_ar_ready <= next_data_axi_ar_ready;
 		data_axi_r_payload_data <= next_data_axi_r_payload_data;
-		data_axi_r_valid <= next_data_axi_r_valid && data_ar_fire_nbus && !dmem_req_r_valid_q_nbus;
-		dmem_req_r_valid_q_nbus <= data_ar_fire_nbus && !reset;
 		data_axi_r_payload_resp <= 2'b00;
 
 		data_axi_aw_ready <= next_data_axi_aw_ready;
 		data_axi_w_ready <= next_data_axi_aw_ready;
-		data_axi_b_valid <= next_data_axi_b_valid && data_aw_fire_nbus && data_w_fire_nbus && !dmem_req_w_valid_q_nbus;
-		dmem_req_w_valid_q_nbus <= (data_aw_fire_nbus && data_w_fire_nbus) && !reset;
 		data_axi_b_payload_resp <= 2'b00;
+
+		if (reset) begin
+			dmem_r_pending <= 0;
+			dmem_w_pending <= 0;
+			data_axi_r_valid <= 0;
+			data_axi_b_valid <= 0;
+		end else begin
+			// Read channel
+			if (data_ar_fire_nbus)
+				dmem_r_pending <= 1;
+			else if (data_axi_r_valid)
+				dmem_r_pending <= 0;
+			data_axi_r_valid <= next_data_axi_r_valid && (dmem_r_pending || data_ar_fire_nbus) && !data_axi_r_valid;
+
+			// Write channel
+			if (data_aw_fire_nbus && data_w_fire_nbus)
+				dmem_w_pending <= 1;
+			else if (data_axi_b_valid)
+				dmem_w_pending <= 0;
+			data_axi_b_valid <= next_data_axi_b_valid && (dmem_w_pending || (data_aw_fire_nbus && data_w_fire_nbus)) && !data_axi_b_valid;
+		end
 	end
  
 `endif
