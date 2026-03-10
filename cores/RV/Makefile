@@ -1,6 +1,11 @@
 
+RV_ROOT    := ../../../../../../
+RV_GEN_CMD := sbt "runMain rv.RVFormalVerilog"
 
-checks:
+rv:
+	cd $(RV_ROOT) && $(RV_GEN_CMD)
+
+checks: rv
 	python3 ../../checks/genchecks.py
 	$(MAKE) -C checks
 

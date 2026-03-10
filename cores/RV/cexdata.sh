@@ -1,48 +1,59 @@
 #!/bin/bash
 #
-#  NERV -- Naive Educational RISC-V Processor
-#
-#  Copyright (C) 2020  Claire Xenia Wolf <claire@yosyshq.com>
-#
-#  Permission to use, copy, modify, and/or distribute this software for any
-#  purpose with or without fee is hereby granted, provided that the above
-#  copyright notice and this permission notice appear in all copies.
-#
-#  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-#  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-#  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-#  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-#  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
-#  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
-#  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
 
 set -ex
 
 rm -rf cexdata
 mkdir cexdata
 
-for x in {checks,testbug[0-9][0-9][0-9]}/*/FAIL; do
-	test -f $x || continue
+# Collect FAIL traces (nullglob avoids errors when no FAILs exist)
+shopt -s nullglob
+for x in checks/*/FAIL testbug[0-9][0-9][0-9]/*/FAIL; do
+	test -f "$x" || continue
 	x=${x%/FAIL}
 	y=${x/\//_}
-	cp $x/logfile.txt cexdata/$y.log
-	if test -f $x/engine_*/trace.vcd; then
-		cp $x/engine_*/trace.vcd cexdata/$y.vcd
-		python3 disasm.py cexdata/$y.vcd > cexdata/$y.asm
+	cp "$x/logfile.txt" "cexdata/$y.log"
+	# Use find to safely locate trace.vcd regardless of engine name
+	trace=$(find "$x" -name "trace.vcd" -maxdepth 2 | head -1)
+	if [ -n "$trace" ]; then
+		cp "$trace" "cexdata/$y.vcd"
+		python3 disasm.py "cexdata/$y.vcd" > "cexdata/$y.asm"
 	fi
 done
+shopt -u nullglob
 
-sed -E '/WARNING|[Ww]arning/ ! d; /\[VERI-1927\] .*\/wrapper.sv:/ d; s/^([^:]|:[^ ])*: //;' checks/*/logfile.txt | sort -Vu > cexdata/warnings.txt
+# Collect warnings from all logfiles that exist
+logfiles=()
+shopt -s nullglob
+for d in checks/*/logfile.txt testbug[0-9][0-9][0-9]/*/logfile.txt; do
+	logfiles+=("$d")
+done
+shopt -u nullglob
+if [ ${#logfiles[@]} -gt 0 ]; then
+	sed -E '/WARNING|[Ww]arning/!d; /\[VERI-1927\] .*\/wrapper\.sv:/d; s/^([^:]|:[^ ])*: //' "${logfiles[@]}" | sort -u > cexdata/warnings.txt
+else
+	touch cexdata/warnings.txt
+fi
 
-for x in {checks,testbug[0-9][0-9][0-9]}/*.sby; do
-	test -f $x || continue
+# Build status table for each .sby
+get_time() {
+	grep 'Elapsed process time' "$1" 2>/dev/null | sed -E 's/.*\]: ([^ ]+).*/\1/' | head -1
+}
+
+shopt -s nullglob
+for x in checks/*.sby testbug[0-9][0-9][0-9]/*.sby; do
+	test -f "$x" || continue
 	x=${x%.sby}
-	if [ -f $x/PASS ]; then
-		printf "%-30s %s %10s\n" $x "  pass  " $(sed '/Elapsed process time/ { s/.*\]: //; s/ .*//; p; }; d;' $x/logfile.txt)
-	elif [ -f $x/FAIL ]; then
-		printf "%-30s %s %10s\n" $x "**FAIL**" $(sed '/Elapsed process time/ { s/.*\]: //; s/ .*//; p; }; d;' $x/logfile.txt)
+	if [ -f "$x/PASS" ]; then
+		t=$(get_time "$x/logfile.txt" 2>/dev/null || true)
+		printf "%-30s %s %10s\n" "$x" "  pass  " "${t:-?}"
+	elif [ -f "$x/FAIL" ]; then
+		t=$(get_time "$x/logfile.txt" 2>/dev/null || true)
+		printf "%-30s %s %10s\n" "$x" "**FAIL**" "${t:-?}"
 	else
-		printf "%-30s %s\n" $x unknown
+		printf "%-30s %s\n" "$x" unknown
 	fi
 done | awk '{ gsub(":", "", $3); print $3, $0; }' | sort -n | cut -f2- -d' ' > cexdata/status.txt
+shopt -u nullglob
 
