@@ -18,7 +18,6 @@ module rvfi_wrapper (
 	(* keep *)  wire                       instr_axi_ar_valid;
 	(* keep *)  logic                      instr_axi_ar_ready;
 	(* keep *)  wire [31:0]                instr_axi_ar_payload_addr;
-	(* keep *)  wire [2:0]                 instr_axi_ar_payload_prot;
 	(* keep *)  logic                      instr_axi_r_valid;
 	(* keep *)  wire                       instr_axi_r_ready;
 	(* keep *)  logic [31:0]               instr_axi_r_payload_data;
@@ -30,7 +29,6 @@ module rvfi_wrapper (
 	(* keep *)  wire                       data_axi_aw_valid;
 	(* keep *)  logic                      data_axi_aw_ready;
 	(* keep *)  wire [31:0]                data_axi_aw_payload_addr;
-	(* keep *)  wire [2:0]                 data_axi_aw_payload_prot;
 	(* keep *)  wire                       data_axi_w_valid;
 	(* keep *)  logic                      data_axi_w_ready;
 	(* keep *)  wire [31:0]                data_axi_w_payload_data;
@@ -41,7 +39,6 @@ module rvfi_wrapper (
 	(* keep *)  wire                       data_axi_ar_valid;
 	(* keep *)  logic                      data_axi_ar_ready;
 	(* keep *)  wire [31:0]                data_axi_ar_payload_addr;
-	(* keep *)  wire [2:0]                 data_axi_ar_payload_prot;
 	(* keep *)  logic                      data_axi_r_valid;
 	(* keep *)  wire                       data_axi_r_ready;
 	(* keep *)  logic [31:0]               data_axi_r_payload_data;
@@ -52,12 +49,11 @@ module rvfi_wrapper (
 
 	RV_formal uut (
 		.clk      (clock    ),
-		.reset      (reset    ),
+		.resetn   (~reset   ),
 
 		.instr_axi_ar_valid        (instr_axi_ar_valid),
 		.instr_axi_ar_ready        (instr_axi_ar_ready),
 		.instr_axi_ar_payload_addr (instr_axi_ar_payload_addr),
-		.instr_axi_ar_payload_prot (instr_axi_ar_payload_prot),
 		.instr_axi_r_valid         (instr_axi_r_valid),
 		.instr_axi_r_ready         (instr_axi_r_ready),
 		.instr_axi_r_payload_data  (instr_axi_r_payload_data),
@@ -66,7 +62,6 @@ module rvfi_wrapper (
 		.data_axi_aw_valid         (data_axi_aw_valid),
 		.data_axi_aw_ready         (data_axi_aw_ready),
 		.data_axi_aw_payload_addr  (data_axi_aw_payload_addr),
-		.data_axi_aw_payload_prot  (data_axi_aw_payload_prot),
 		.data_axi_w_valid          (data_axi_w_valid),
 		.data_axi_w_ready          (data_axi_w_ready),
 		.data_axi_w_payload_data   (data_axi_w_payload_data),
@@ -77,27 +72,31 @@ module rvfi_wrapper (
 		.data_axi_ar_valid         (data_axi_ar_valid),
 		.data_axi_ar_ready         (data_axi_ar_ready),
 		.data_axi_ar_payload_addr  (data_axi_ar_payload_addr),
-		.data_axi_ar_payload_prot  (data_axi_ar_payload_prot),
 		.data_axi_r_valid          (data_axi_r_valid),
 		.data_axi_r_ready          (data_axi_r_ready),
 		.data_axi_r_payload_data   (data_axi_r_payload_data),
 		.data_axi_r_payload_resp   (data_axi_r_payload_resp),
 
 		// debug intf
-		.debug_reg_rdata (),
-		.debug_reg_wdata (32'b0),
-		.debug_reg_addr (5'b0),
-		.debug_reg_wr (1'b0),	
-		.debug_csr_addr (12'b0),
-		.debug_csr_wdata (32'b0),
-		.debug_csr_rdata (),
-		.debug_csr_wr (1'b0),
-		.debug_halt_req (1'b0),
-		.debug_resume_req (1'b0),
+		.debug_halted         (),
+		.debug_reg_rdata      (),
+		.debug_reg_wdata      (32'b0),
+		.debug_reg_addr       (5'b0),
+		.debug_reg_wr         (1'b0),
+		.debug_csr_addr       (12'b0),
+		.debug_csr_wdata      (32'b0),
+		.debug_csr_rdata      (),
+		.debug_csr_wr         (1'b0),
+		.debug_halt_req       (1'b0),
+		.debug_resume_req     (1'b0),
+		.debug_dbg_exec_req   (1'b0),
+		.debug_dbg_exec_instr (32'b0),
+		.debug_dbg_exec_done  (),
+		.debug_dbg_exec_err   (),
 
-		
-		.irq (irq),
+		.irq       (irq),
 		.timer_irq (1'b0),
+		.soft_irq  (1'b0),
 
 
 
